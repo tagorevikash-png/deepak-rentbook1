@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>Deepak's Rent Book</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Summary strip, search and filter chips, expandable renter cards,
+   a floating Add renter button, and bottom-sheet forms. Money in rupees, dates in Indian format. */
+:root{
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Figtree","Segoe UI",system-ui,sans-serif;
+  --bg:#EEF2F0; --surface:#FFFFFF; --surface-2:#F4F7F6; --ink:#12201C; --muted:#586964; --line:#D9E2DE;
+  --accent:#0C6A5A; --accent-ink:#FFFFFF; --accent-soft:#DDF0EA;
+  --due:#A4470A; --due-soft:#FBE9D9;
+  --danger:#B3261E; --danger-soft:#FBE3E1;
+  --left:#52626E; --left-soft:#E4EAEE;
+  --shadow:0 1px 2px rgba(18,32,28,.06),0 6px 18px rgba(18,32,28,.06);
+  --scrim:rgba(8,16,13,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1412; --surface:#151F1C; --surface-2:#1B2723; --ink:#E7F0ED; --muted:#98ABA5; --line:#27352F;
+    --accent:#52C7AC; --accent-ink:#06231D; --accent-soft:#17352E;
+    --due:#F2A468; --due-soft:#3A2515;
+    --danger:#F28B82; --danger-soft:#3C1D1B;
+    --left:#9DB0BE; --left-soft:#223039;
+    --shadow:0 1px 2px rgba(0,0,0,.45);
+    --scrim:rgba(0,0,0,.65);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1412; --surface:#151F1C; --surface-2:#1B2723; --ink:#E7F0ED; --muted:#98ABA5; --line:#27352F;
+  --accent:#52C7AC; --accent-ink:#06231D; --accent-soft:#17352E;
+  --due:#F2A468; --due-soft:#3A2515;
+  --danger:#F28B82; --danger-soft:#3C1D1B;
+  --left:#9DB0BE; --left-soft:#223039;
+  --shadow:0 1px 2px rgba(0,0,0,.45);
+  --scrim:rgba(0,0,0,.65);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 120px;
+}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+.top h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.01em;text-wrap:balance}
+.top p{margin:4px 0 0;color:var(--muted)}
+
+/* summary */
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.summary>div{padding:12px 12px 13px;min-width:0}
+.summary>div+div{border-left:1px solid var(--line)}
+.summary .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.summary .v{font-family:var(--f-display);font-weight:700;font-size:clamp(18px,5.4vw,24px);line-height:1.2;margin-top:2px;overflow-wrap:anywhere}
+.summary .v.due{color:var(--due)}
+
+/* notices */
+.notice{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--accent-soft);color:var(--ink);font-size:14px}
+.notice.warn{background:var(--due-soft)}
+.notice p{margin:0;min-width:0;flex:1 1 220px}
+
+/* controls */
+.search{position:relative}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search input{width:100%;min-height:46px;padding:10px 12px 10px 40px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:38px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.chip .n{color:var(--muted);font-size:13px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip[aria-pressed="true"] .n{color:inherit;opacity:.85}
+
+/* list and cards */
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.card-head{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px;background:none;border:0;text-align:left;cursor:pointer}
+.room{display:grid;justify-items:center;min-width:54px;padding:6px 8px;border-radius:8px;background:var(--accent-soft);color:var(--accent)}
+.room small{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;opacity:.85}
+.room b{font-family:var(--f-display);font-size:20px;line-height:1.1;overflow-wrap:anywhere;text-align:center}
+.card.left .room{background:var(--left-soft);color:var(--left)}
+.who{min-width:0}
+.who .name{display:block;font-weight:600;font-size:16px;overflow-wrap:anywhere}
+.who .sub{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:13px;margin-top:2px}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--left-soft);color:var(--left)}
+.pill.ex{background:var(--accent-soft);color:var(--accent)}
+.amt{text-align:right;min-width:0}
+.amt b{display:block;font-family:var(--f-display);font-size:18px;line-height:1.15}
+.amt span{font-size:12px;color:var(--muted)}
+.amt.due b{color:var(--due)}
+.amt.ok b{color:var(--accent)}
+.chev{color:var(--muted);transition:transform .15s}
+.card.open .chev{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+
+.details{padding:4px 14px 14px;border-top:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;gap:14px}
+dl.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin:12px 0 0}
+dl.facts>div{min-width:0}
+dl.facts .full{grid-column:1/-1}
+dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+dd{margin:2px 0 0;overflow-wrap:anywhere}
+dd .hint{display:block;font-size:13px;color:var(--muted)}
+dd.big{font-family:var(--f-display);font-weight:700;font-size:20px}
+dd.big.due{color:var(--due)}
+dd.big.ok{color:var(--accent)}
+.inline-btns{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.h3{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pays{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.pays li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.pays li:first-child{border-top:0}
+.pays .d{min-width:0}
+.pays .d small{display:block;color:var(--muted)}
+.pays .a{font-weight:600;font-family:var(--f-display)}
+.link{background:none;border:0;padding:6px 4px;color:var(--danger);cursor:pointer;font-size:13px;text-decoration:underline;min-height:36px}
+.none{color:var(--muted);margin:0}
+
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{min-height:44px;padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.small{min-height:36px;padding:4px 12px;font-size:14px}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn:disabled{opacity:.5}
+
+.empty{padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:10px}
+.empty b{display:block;color:var(--ink);font-family:var(--f-display);font-size:18px;margin-bottom:4px}
+
+.data{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.data h2{margin:0;font-family:var(--f-display);font-size:18px}
+.data p{margin:0;color:var(--muted);font-size:14px}
+.how{font-size:13px;color:var(--muted);margin:0}
+
+/* floating add button */
+.fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5;min-height:52px;padding:0 20px 0 16px;border-radius:999px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:16px;display:inline-flex;gap:8px;align-items:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.28)}
+
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;max-width:min(92vw,520px);display:flex;gap:14px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--ink);color:var(--bg);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.toast button{background:none;border:0;color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;min-height:36px;padding:0 4px}
+
+/* sheets */
+dialog{position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:560px;max-height:92%;overflow:auto;border:0;padding:0;border-radius:16px 16px 0 0;background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:var(--scrim)}
+.sheet{display:flex;flex-direction:column;gap:6px;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px}
+.sheet-head h2{margin:0;font-family:var(--f-display);font-size:22px}
+.icon-btn{width:44px;height:44px;border-radius:8px;border:0;background:none;cursor:pointer;display:grid;place-items:center;color:var(--muted)}
+.sheet label{font-size:13px;font-weight:600;margin-top:8px;color:var(--muted)}
+.sheet .opt{font-weight:400}
+.sheet input,.sheet textarea{width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.sheet textarea{resize:vertical}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.row2>div{min-width:0;display:flex;flex-direction:column;gap:6px}
+.sheet details{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.sheet summary{cursor:pointer;font-weight:600;min-height:32px}
+.sheet details .hint{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.sheet details>div,.sheet details>label,.sheet details>input{margin-top:0}
+.sheet-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+.err{margin:6px 0 0;color:var(--danger);font-weight:600}
+.sheet .whoami{margin:0 0 4px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Deepak's Rent Book</h1>
+    <p id="today"></p>
+  </header>
+
+  <section class="summary" id="summary" aria-label="Summary"></section>
+
+  <div class="notice warn" id="storeWarn" hidden>
+    <p>This browser is not letting the page save. What you enter will be lost when you close it. Open the page in Chrome to keep your records.</p>
+  </div>
+  <div class="notice" id="exampleNote" hidden>
+    <p>These renters are examples so you can see how the book works. Remove them before you start with real renters.</p>
+    <button class="btn small" type="button" data-act="clear-examples">Remove examples</button>
+  </div>
+
+  <div class="search">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Search name, room, mobile or address" aria-label="Search renters" autocomplete="off">
+  </div>
+  <div class="chips" id="chips" role="group" aria-label="Filter renters"></div>
+
+  <ul class="list" id="list"></ul>
+
+  <p class="how">Rent is counted for every calendar month from the month a renter moved in to the month they left (or this month if still staying). Remaining rent is that total minus everything paid.</p>
+
+  <section class="data" aria-labelledby="dataTitle">
+    <h2 id="dataTitle">Backup</h2>
+    <p>Records are saved on this phone, inside this app. Download a backup file now and then, so you can restore it on a new phone.</p>
+    <div class="actions">
+      <button class="btn" type="button" data-act="backup">Download backup</button>
+      <button class="btn" type="button" data-act="restore">Restore from file</button>
+      <input id="restoreFile" type="file" accept=".json,application/json" hidden>
+    </div>
+  </section>
+</div>
+
+<button class="fab" type="button" data-act="add" aria-label="Add renter">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  Add renter
+</button>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="renterDlg" aria-labelledby="renterTitle">
+  <form id="renterForm" class="sheet" autocomplete="off">
+    <div class="sheet-head">
+      <h2 id="renterTitle">Add renter</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <label for="fName">Name of renter</label>
+    <input id="fName" required maxlength="80">
+    <label for="fPhone">Mobile number</label>
+    <input id="fPhone" type="tel" inputmode="tel" required pattern="[0-9+\- ]{8,16}" title="Use digits only, 8 to 16 characters" maxlength="16">
+    <label for="fAddress">Renter's address</label>
+    <textarea id="fAddress" rows="2" maxlength="240"></textarea>
+    <div class="row2">
+      <div><label for="fRoom">Room number</label><input id="fRoom" required maxlength="20"></div>
+      <div><label for="fRent">Monthly rent (₹)</label><input id="fRent" type="number" inputmode="numeric" min="1" step="1" required></div>
+    </div>
+    <div class="row2">
+      <div><label for="fStart">Date rented</label><input id="fStart" type="date" required></div>
+      <div><label for="fLeft">Date left <span class="opt">(if gone)</span></label><input id="fLeft" type="date"></div>
+    </div>
+    <details id="pastBox">
+      <summary>Already paying? Add earlier payments</summary>
+      <p class="hint">For a renter who moved in before you started using this book, enter the total they paid earlier. Payments you add later count on top of it. Do not include the last payment below.</p>
+      <label for="fPrepaid">Total paid before today (₹)</label>
+      <input id="fPrepaid" type="number" inputmode="numeric" min="0" step="1">
+      <div id="lastPayBox">
+        <div class="row2">
+          <div><label for="fLastDate">Last payment date</label><input id="fLastDate" type="date"></div>
+          <div><label for="fLastMonth">Paid for month</label><input id="fLastMonth" type="month"></div>
+        </div>
+        <label for="fLastAmt">Last payment amount (₹)</label>
+        <input id="fLastAmt" type="number" inputmode="numeric" min="0" step="1">
+      </div>
+    </details>
+    <p class="err" id="renterErr" role="alert" hidden></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary">Save renter</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="payDlg" aria-labelledby="payTitle">
+  <form id="payForm" class="sheet" autocomplete="off">
+    <div class="sheet-head">
+      <h2 id="payTitle">Add payment</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <p class="whoami" id="payWho"></p>
+    <label for="pAmt">Amount paid (₹)</label>
+    <input id="pAmt" type="number" inputmode="numeric" min="1" step="1" required>
+    <div class="row2">
+      <div><label for="pDate">Date paid</label><input id="pDate" type="date" required></div>
+      <div><label for="pMonth">For the month of</label><input id="pMonth" type="month" required></div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary">Save payment</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="leftDlg" aria-labelledby="leftTitle">
+  <form id="leftForm" class="sheet" autocomplete="off">
+    <div class="sheet-head">
+      <h2 id="leftTitle">Renter has left</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <p class="whoami" id="leftWho"></p>
+    <label for="lDate">Date left the room</label>
+    <input id="lDate" type="date" required>
+    <p class="how">Rent stops counting after the month of this date. Any rent still due stays on the card.</p>
+    <p class="err" id="leftErr" role="alert" hidden></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary">Mark as left</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function(){
+  var KEY = 'deepakRentBook.v1';
+  var state = { tenants: [] };
+  var filter = 'all', query = '', open = {};
+  var payId = null, leftId = null, editId = null;
+  var toastTimer = null;
+
+  function $(s){ return document.querySelector(s); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36); }
+  function todayISO(){ var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+  function monthOf(iso){ return iso.slice(0,7); }
+  function mIndex(ym){ var p = ym.split('-'); return Number(p[0]) * 12 + (Number(p[1]) - 1); }
+  function ymFromIndex(i){ return Math.floor(i/12) + '-' + pad((i % 12) + 1); }
+  function fmtDate(iso){
+    if(!iso) return '';
+    var p = iso.split('-').map(Number);
+    return new Date(p[0], p[1]-1, p[2]).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+  }
+  function fmtMonth(ym){
+    if(!ym) return '';
+    var p = ym.split('-').map(Number);
+    return new Date(p[0], p[1]-1, 1).toLocaleDateString('en-IN', { month:'short', year:'numeric' });
+  }
+  function inr(n){ return '₹' + Math.abs(Math.round(n)).toLocaleString('en-IN'); }
+
+  /* ---------- calculations ---------- */
+  function calc(t){
+    var end = mIndex(monthOf(t.leftDate || todayISO()));
+    var months = Math.max(0, end - mIndex(monthOf(t.startDate)) + 1);
+    var billed = months * t.rent;
+    var paidNow = t.payments.reduce(function(s,p){ return s + p.amount; }, 0);
+    var paid = paidNow + (t.prepaid || 0);
+    var last = t.payments.slice().sort(function(a,b){
+      return b.date.localeCompare(a.date) || b.month.localeCompare(a.month);
+    })[0] || null;
+    return { months: months, billed: billed, paid: paid, remaining: billed - paid, last: last };
+  }
+  function suggestMonth(t){
+    var c = calc(t);
+    var idx = mIndex(monthOf(t.startDate)) + (t.rent > 0 ? Math.floor(c.paid / t.rent) : 0);
+    if(t.leftDate) idx = Math.min(idx, mIndex(monthOf(t.leftDate)));
+    return ymFromIndex(idx);
+  }
+
+  /* ---------- storage ---------- */
+  function normalize(t){
+    if(!t || typeof t !== 'object') return null;
+    var rent = Number(t.rent);
+    if(!t.name || !t.room || !/^\d{4}-\d{2}-\d{2}$/.test(t.startDate || '') || !(rent > 0)) return null;
+    var pays = Array.isArray(t.payments) ? t.payments.map(function(p){
+      var a = Number(p && p.amount);
+      if(!p || !/^\d{4}-\d{2}-\d{2}$/.test(p.date || '') || !/^\d{4}-\d{2}$/.test(p.month || '') || !(a > 0)) return null;
+      return { id: String(p.id || uid()), date: p.date, month: p.month, amount: a };
+    }).filter(Boolean) : [];
+    return {
+      id: String(t.id || uid()), name: String(t.name), phone: String(t.phone || ''), address: String(t.address || ''),
+      room: String(t.room), startDate: t.startDate, rent: rent,
+      leftDate: /^\d{4}-\d{2}-\d{2}$/.test(t.leftDate || '') ? t.leftDate : null,
+      prepaid: Number(t.prepaid) > 0 ? Number(t.prepaid) : 0, payments: pays, example: !!t.example
+    };
+  }
+  function save(){
+    var ok = true;
+    try { localStorage.setItem(KEY, JSON.stringify({ v:1, tenants: state.tenants })); } catch(e){ ok = false; }
+    $('#storeWarn').hidden = ok;
+  }
+  function load(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if(raw){
+        var d = JSON.parse(raw);
+        if(d && Array.isArray(d.tenants)){ state.tenants = d.tenants.map(normalize).filter(Boolean); return true; }
+      }
+    } catch(e){}
+    return false;
+  }
+  function seedExamples(){
+    var cur = mIndex(monthOf(todayISO()));
+    function dayIn(ym, day){ return ym + '-' + pad(day); }
+    function mk(room, name, phone, address, startBack, rent, paidThrough, leftBack, partial){
+      var startYm = ymFromIndex(cur - startBack);
+      var t = { id: uid(), name: name, phone: phone, address: address, room: room, startDate: dayIn(startYm, 5),
+                rent: rent, leftDate: leftBack != null ? dayIn(ymFromIndex(cur - leftBack), 28) : null,
+                prepaid: 0, payments: [], example: true };
+      for(var i = cur - startBack; i <= paidThrough; i++){
+        var ym = ymFromIndex(i);
+        var amt = (partial && i === paidThrough) ? Math.round(rent / 2) : rent;
+        t.payments.push({ id: uid(), date: dayIn(ym, 6), month: ym, amount: amt });
+      }
+      return t;
+    }
+    state.tenants = [
+      mk('101', 'Suresh Kumar (example)', '90000 00001', 'Village Rampur, Bhiwani', 6, 3500, cur, null, false),
+      mk('102', 'Anita Sharma (example)', '90000 00002', 'Ward 4, Hansi Road, Hisar', 5, 4000, cur - 2, null, true),
+      mk('104', 'Mohan Lal (example)', '90000 00003', 'Near bus stand, Siwani', 9, 3000, cur - 1, 1, false)
+    ];
+    save();
+  }
+
+  /* ---------- rendering ---------- */
+  function visible(t){
+    if(filter === 'pending' && !(calc(t).remaining > 0)) return false;
+    if(filter === 'staying' && t.leftDate) return false;
+    if(filter === 'left' && !t.leftDate) return false;
+    if(query){
+      var hay = (t.name + ' ' + t.room + ' ' + t.phone + ' ' + t.address).toLowerCase();
+      if(hay.indexOf(query) === -1) return false;
+    }
+    return true;
+  }
+  function sorted(list){
+    return list.slice().sort(function(a,b){
+      if(!!a.leftDate !== !!b.leftDate) return a.leftDate ? 1 : -1;
+      return a.room.localeCompare(b.room, undefined, { numeric:true });
+    });
+  }
+  function renderSummary(){
+    var cur = monthOf(todayISO());
+    var staying = 0, pending = 0, collected = 0;
+    state.tenants.forEach(function(t){
+      if(!t.leftDate) staying++;
+      var r = calc(t).remaining; if(r > 0) pending += r;
+      t.payments.forEach(function(p){ if(monthOf(p.date) === cur) collected += p.amount; });
+    });
+    var mName = new Date().toLocaleDateString('en-IN', { month:'short' });
+    $('#summary').innerHTML =
+      '<div><div class="k">Staying</div><div class="v num">' + staying + '</div></div>' +
+      '<div><div class="k">Pending rent</div><div class="v num' + (pending > 0 ? ' due' : '') + '">' + inr(pending) + '</div></div>' +
+      '<div><div class="k">Got in ' + esc(mName) + '</div><div class="v num">' + inr(collected) + '</div></div>';
+  }
+  function renderChips(){
+    var all = state.tenants.length;
+    var pend = state.tenants.filter(function(t){ return calc(t).remaining > 0; }).length;
+    var stay = state.tenants.filter(function(t){ return !t.leftDate; }).length;
+    var gone = all - stay;
+    var defs = [['all','All',all],['pending','Pending',pend],['staying','Staying',stay],['left','Left',gone]];
+    $('#chips').innerHTML = defs.map(function(d){
+      return '<button type="button" class="chip" data-filter="' + d[0] + '" aria-pressed="' + (filter === d[0]) + '">' + d[1] + ' <span class="n num">' + d[2] + '</span></button>';
+    }).join('');
+  }
+  function cardHTML(t){
+    var c = calc(t), left = !!t.leftDate, isOpen = !!open[t.id];
+    var amtCls = 'ok', amtMain, amtSub = '';
+    if(c.remaining > 0){ amtCls = 'due'; amtMain = inr(c.remaining); amtSub = 'due'; }
+    else if(c.remaining < 0){ amtMain = inr(c.remaining); amtSub = 'in advance'; }
+    else { amtMain = left ? 'Settled' : 'Paid up'; }
+    var pays = t.payments.slice().sort(function(a,b){ return b.date.localeCompare(a.date) || b.month.localeCompare(a.month); });
+    var payRows = pays.map(function(p){
+      return '<li><span class="d">' + esc(fmtDate(p.date)) + '<small>for ' + esc(fmtMonth(p.month)) + '</small></span>' +
+        '<span class="a num">' + inr(p.amount) + '</span>' +
+        '<button type="button" class="link" data-act="rmpay" data-id="' + esc(t.id) + '" data-pid="' + esc(p.id) + '" aria-label="Remove payment of ' + inr(p.amount) + '">Remove</button></li>';
+    }).join('');
+    if(t.prepaid > 0){
+      payRows += '<li><span class="d">Paid before using this book<small>earlier total</small></span><span class="a num">' + inr(t.prepaid) + '</span><span></span></li>';
+    }
+    var lastTxt = c.last ? esc(fmtDate(c.last.date)) + '<span class="hint num">' + inr(c.last.amount) + '</span>' : 'None yet';
+    var forTxt = c.last ? esc(fmtMonth(c.last.month)) : 'None yet';
+    var phone = esc(t.phone);
+    var dial = t.phone.replace(/[^0-9+]/g, '');
+    return '<li><article class="card' + (isOpen ? ' open' : '') + (left ? ' left' : '') + '" data-id="' + esc(t.id) + '">' +
+      '<button type="button" class="card-head" data-act="toggle" data-id="' + esc(t.id) + '" aria-expanded="' + isOpen + '" aria-controls="d-' + esc(t.id) + '">' +
+        '<span class="room"><small>Room</small><b>' + esc(t.room) + '</b></span>' +
+        '<span class="who"><span class="name">' + esc(t.name) + '</span><span class="sub"><span class="num">' + phone + '</span>' +
+          (left ? '<span class="pill">Left ' + esc(fmtDate(t.leftDate)) + '</span>' : '') +
+          (t.example ? '<span class="pill ex">Example</span>' : '') + '</span></span>' +
+        '<span class="amt ' + amtCls + '"><b class="num">' + esc(amtMain) + '</b>' + (amtSub ? '<span>' + amtSub + '</span>' : '') + '</span>' +
+        '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' +
+      '</button>' +
+      '<div class="details" id="d-' + esc(t.id) + '"' + (isOpen ? '' : ' hidden') + '>' +
+        '<dl class="facts">' +
+          '<div class="full"><dt>Mobile number</dt><dd class="num">' + phone +
+            '<div class="inline-btns"><button type="button" class="btn small" data-act="copy" data-text="' + esc(t.phone) + '">Copy number</button>' +
+            (dial ? '<a class="btn small" style="text-decoration:none;display:inline-flex;align-items:center" href="tel:' + esc(dial) + '">Call</a>' : '') + '</div></dd></div>' +
+          '<div class="full"><dt>Address</dt><dd>' + (t.address ? esc(t.address) : 'Not added') + '</dd></div>' +
+          '<div><dt>Date rented</dt><dd>' + esc(fmtDate(t.startDate)) + '</dd></div>' +
+          '<div><dt>Monthly rent</dt><dd class="num">' + inr(t.rent) + '</dd></div>' +
+          '<div><dt>Last payment</dt><dd class="num">' + lastTxt + '</dd></div>' +
+          '<div><dt>Paid for month</dt><dd>' + forTxt + '</dd></div>' +
+          '<div class="full"><dt>Remaining rent</dt><dd class="big num ' + amtCls + '">' + (c.remaining < 0 ? inr(c.remaining) + ' advance' : inr(c.remaining)) +
+            '<span class="hint" style="font-family:var(--f-body);font-weight:400">' + c.months + ' month' + (c.months === 1 ? '' : 's') + ' × ' + inr(t.rent) + ' = ' + inr(c.billed) + ', paid ' + inr(c.paid) + '</span></dd></div>' +
+          '<div class="full"><dt>Date left</dt><dd>' + (left ? esc(fmtDate(t.leftDate)) : 'Still staying') + '</dd></div>' +
+        '</dl>' +
+        '<div><h3 class="h3">Payments</h3>' + (payRows ? '<ul class="pays">' + payRows + '</ul>' : '<p class="none">No payments added yet.</p>') + '</div>' +
+        '<div class="actions">' +
+          '<button type="button" class="btn primary" data-act="pay" data-id="' + esc(t.id) + '">Add payment</button>' +
+          '<button type="button" class="btn" data-act="edit" data-id="' + esc(t.id) + '">Edit</button>' +
+          (left ? '<button type="button" class="btn" data-act="restay" data-id="' + esc(t.id) + '">Mark as staying</button>'
+                : '<button type="button" class="btn" data-act="left" data-id="' + esc(t.id) + '">Mark as left</button>') +
+          '<button type="button" class="btn danger" data-act="delete" data-id="' + esc(t.id) + '">Delete</button>' +
+        '</div>' +
+      '</div></article></li>';
+  }
+  function renderList(){
+    var rows = sorted(state.tenants.filter(visible));
+    if(!state.tenants.length){
+      $('#list').innerHTML = '<li class="empty"><b>No renters yet</b>Tap Add renter to enter the first one.</li>';
+    } else if(!rows.length){
+      $('#list').innerHTML = '<li class="empty"><b>Nothing matches</b>Try another search or filter.</li>';
+    } else {
+      $('#list').innerHTML = rows.map(cardHTML).join('');
+    }
+  }
+  function render(){
+    $('#today').textContent = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    $('#exampleNote').hidden = !state.tenants.some(function(t){ return t.example; });
+    renderSummary(); renderChips(); renderList();
+  }
+
+  /* ---------- toast ---------- */
+  function toast(msg, undoSnap){
+    var el = $('#toast');
+    el.innerHTML = '';
+    var s = document.createElement('span'); s.textContent = msg; el.appendChild(s);
+    if(undoSnap){
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Undo';
+      b.addEventListener('click', function(){
+        state.tenants = JSON.parse(undoSnap).map(normalize).filter(Boolean);
+        save(); render(); el.hidden = true;
+      });
+      el.appendChild(b);
+    }
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.hidden = true; }, undoSnap ? 7000 : 3200);
+  }
+  function snapshot(){ return JSON.stringify(state.tenants); }
+  function find(id){ return state.tenants.filter(function(t){ return t.id === id; })[0]; }
+  function copyText(text){
+    var done = function(){ toast('Number copied'); };
+    var fallback = function(){
+      var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch(e){ toast('Press and hold the number to copy it'); }
+      ta.remove();
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, fallback); } else { fallback(); }
+  }
+
+  /* ---------- dialogs ---------- */
+  function openRenter(id){
+    editId = id || null;
+    var t = id ? find(id) : null;
+    $('#renterTitle').textContent = t ? 'Edit renter' : 'Add renter';
+    $('#fName').value = t ? t.name : '';
+    $('#fPhone').value = t ? t.phone : '';
+    $('#fAddress').value = t ? t.address : '';
+    $('#fRoom').value = t ? t.room : '';
+    $('#fRent').value = t ? t.rent : '';
+    $('#fStart').value = t ? t.startDate : todayISO();
+    $('#fLeft').value = t && t.leftDate ? t.leftDate : '';
+    $('#fPrepaid').value = t && t.prepaid ? t.prepaid : '';
+    $('#fLastDate').value = ''; $('#fLastMonth').value = ''; $('#fLastAmt').value = '';
+    $('#lastPayBox').hidden = !!t;
+    $('#pastBox').open = !!(t && t.prepaid);
+    $('#renterErr').hidden = true;
+    $('#renterDlg').showModal();
+  }
+  function openPay(id){
+    var t = find(id); if(!t) return;
+    var c = calc(t);
+    payId = id;
+    $('#payWho').textContent = 'Room ' + t.room + ', ' + t.name;
+    $('#pAmt').value = c.remaining > 0 ? c.remaining : t.rent;
+    $('#pDate').value = todayISO();
+    $('#pMonth').value = suggestMonth(t);
+    $('#payDlg').showModal();
+  }
+  function openLeft(id){
+    var t = find(id); if(!t) return;
+    leftId = id;
+    $('#leftWho').textContent = 'Room ' + t.room + ', ' + t.name;
+    var d = todayISO(); if(d < t.startDate) d = t.startDate;
+    $('#lDate').value = d;
+    $('#lDate').min = t.startDate;
+    $('#leftErr').hidden = true;
+    $('#leftDlg').showModal();
+  }
+
+  $('#renterForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var start = $('#fStart').value, left = $('#fLeft').value;
+    if(left && left < start){
+      $('#renterErr').textContent = 'The date left is before the date rented. Please check both dates.';
+      $('#renterErr').hidden = false; return;
+    }
+    var data = {
+      name: $('#fName').value.trim(), phone: $('#fPhone').value.trim(), address: $('#fAddress').value.trim(),
+      room: $('#fRoom').value.trim(), rent: Number($('#fRent').value), startDate: start, leftDate: left || null,
+      prepaid: Math.max(0, Number($('#fPrepaid').value) || 0)
+    };
+    var t;
+    if(editId){
+      t = find(editId);
+      Object.keys(data).forEach(function(k){ t[k] = data[k]; });
+    } else {
+      t = Object.assign({ id: uid(), payments: [], example: false }, data);
+      var amt = Number($('#fLastAmt').value);
+      if(amt > 0){
+        var pd = $('#fLastDate').value || todayISO();
+        t.payments.push({ id: uid(), date: pd, month: $('#fLastMonth').value || monthOf(pd), amount: amt });
+      }
+      state.tenants.push(t);
+    }
+    save();
+    filter = 'all'; query = ''; $('#q').value = '';
+    open[t.id] = true;
+    $('#renterDlg').close();
+    render();
+    toast(editId ? 'Changes saved' : 'Renter added');
+    var card = document.querySelector('.card[data-id="' + t.id + '"]');
+    if(card) card.scrollIntoView({ block:'center' });
+  });
+  $('#payForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var t = find(payId); if(!t) return;
+    var amt = Number($('#pAmt').value);
+    if(!(amt > 0)) return;
+    t.payments.push({ id: uid(), date: $('#pDate').value, month: $('#pMonth').value, amount: amt });
+    save(); open[t.id] = true; $('#payDlg').close(); render();
+    toast('Added ' + inr(amt) + ' for ' + fmtMonth($('#pMonth').value));
+  });
+  $('#leftForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var t = find(leftId); if(!t) return;
+    var d = $('#lDate').value;
+    if(d < t.startDate){ $('#leftErr').textContent = 'The date left is before the date rented.'; $('#leftErr').hidden = false; return; }
+    t.leftDate = d; save(); $('#leftDlg').close(); render();
+    toast('Marked as left on ' + fmtDate(d));
+  });
+
+  /* ---------- backup ---------- */
+  function downloadBackup(){
+    var text = JSON.stringify({ app:'deepak-rent-book', version:1, exportedAt:new Date().toISOString(), tenants:state.tenants }, null, 2);
+    var name = 'rent-book-backup-' + todayISO() + '.json';
+    if(window.AndroidBridge){
+      var saved = false;
+      try { saved = window.AndroidBridge.saveBackup(name, text); } catch(e){}
+      toast(saved ? 'Backup saved in your Downloads folder' : 'Could not save the backup file.');
+      return;
+    }
+    var viaCap = null;
+    var cap = (window.claude && window.claude.use) ? window.claude.use('downloads') : Promise.resolve(null);
+    cap.then(function(d){
+      viaCap = d;
+      if(d) return d.save({ filename:name, data:text }).then(function(){ toast('Backup saved'); });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type:'application/json' }));
+      a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      toast('Backup requested. Check your Downloads folder.');
+    }).catch(function(err){
+      if(viaCap && err && err.code === 'declined') return;
+      toast('Could not save the backup file.');
+    });
+  }
+  function restoreFromFile(file){
+    var r = new FileReader();
+    r.onload = function(){
+      try {
+        var d = JSON.parse(String(r.result));
+        var list = Array.isArray(d) ? d : d.tenants;
+        var clean = (list || []).map(normalize).filter(Boolean);
+        if(!clean.length) throw new Error('empty');
+        var snap = snapshot();
+        state.tenants = clean; save(); render();
+        toast('Restored ' + clean.length + ' renter' + (clean.length === 1 ? '' : 's'), snap);
+      } catch(e){ toast('That file is not a rent book backup.'); }
+    };
+    r.readAsText(file);
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', function(e){
+    var closeBtn = e.target.closest('[data-close]');
+    if(closeBtn){ closeBtn.closest('dialog').close(); return; }
+    if(e.target.tagName === 'DIALOG'){ e.target.close(); return; }
+    var chip = e.target.closest('[data-filter]');
+    if(chip){ filter = chip.getAttribute('data-filter'); renderChips(); renderList(); return; }
+    var b = e.target.closest('[data-act]'); if(!b) return;
+    var act = b.getAttribute('data-act'), id = b.getAttribute('data-id'), t = id ? find(id) : null;
+    if(act === 'add') openRenter();
+    else if(act === 'toggle'){ if(open[id]) delete open[id]; else open[id] = true; renderList(); var el = document.querySelector('.card-head[data-id="' + id + '"]'); if(el) el.focus({ preventScroll:true }); }
+    else if(act === 'edit') openRenter(id);
+    else if(act === 'pay') openPay(id);
+    else if(act === 'left') openLeft(id);
+    else if(act === 'restay' && t){ t.leftDate = null; save(); render(); toast(t.name + ' is marked as staying'); }
+    else if(act === 'delete' && t){ var s1 = snapshot(); state.tenants = state.tenants.filter(function(x){ return x.id !== id; }); save(); render(); toast('Deleted ' + t.name, s1); }
+    else if(act === 'rmpay' && t){ var s2 = snapshot(); t.payments = t.payments.filter(function(p){ return p.id !== b.getAttribute('data-pid'); }); save(); render(); toast('Payment removed', s2); }
+    else if(act === 'copy') copyText(b.getAttribute('data-text'));
+    else if(act === 'clear-examples'){ var s3 = snapshot(); state.tenants = state.tenants.filter(function(x){ return !x.example; }); save(); render(); toast('Examples removed', s3); }
+    else if(act === 'backup') downloadBackup();
+    else if(act === 'restore') $('#restoreFile').click();
+  });
+  $('#q').addEventListener('input', function(e){ query = e.target.value.trim().toLowerCase(); renderList(); });
+  $('#restoreFile').addEventListener('change', function(e){
+    var f = e.target.files && e.target.files[0];
+    if(f) restoreFromFile(f);
+    e.target.value = '';
+  });
+
+  if(!load()) seedExamples();
+  render();
+})();
+</script>
+
+</body>
+</html>
